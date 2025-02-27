@@ -1,0 +1,8 @@
+numpy
+rastermap
+scikit-learn
+torch
+torchaudio
+tqdm 
+matplotlib
+natsort
