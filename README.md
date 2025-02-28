@@ -44,7 +44,6 @@ There are no strict version requirements, but listed below are the versions we u
 - scikit-learn=1.6.1
 - torch=2.6.0
 - torchaudio=2.6.0
-- neuropop=1.0.1
 - tqdm=4.67.1
 - matplotlib=3.10.0
 - natsort=8.4.0
