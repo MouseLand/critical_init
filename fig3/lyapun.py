@@ -1,48 +1,10 @@
 import numpy as np
 import torch
 from torch.fft import fft, ifft 
-
-def getdb():
-    db = [] 
-    
-    db.append({'mname': 'FX26'})
-    db.append({'mname': 'FX14'}) 
-    db.append({'mname': 'FX17'}) 
-    db.append({'mname': 'FX42'}) 
-    db.append({'mname': 'FX43'}) 
-    db.append({'mname': 'QZ2'}) 
-    
-    db.append({'mname': 'GP9'})  
-    db.append({'mname': 'GP7'})      
-    db.append({'mname': 'GP10'})  
-    db.append({'mname': 'GP8'})  
-
-    return db
-
-def SVCA2(X, xpos=None, ypos=None, dt = 0, device = torch.device('cuda')):
-    if not torch.is_tensor(X):
-        X = torch.from_numpy(X).to(device)
-    NN,NT = X.shape
-
-    if xpos is None or ypos is None: 
-        ix = np.random.rand(NN)>.5
-    else:
-        dx = (xpos%50<25).astype('int32')
-        dy = (ypos%50<25).astype('int32')
-        ix = (dx + dy)%2==0
-
-    ntrain = ix.nonzero()[0]
-    ntest  = (~ix).nonzero()[0]
-
-
-    cov = (X[ntrain, dt:] @ X[ntest, :NT-dt].T)
-
-    e, u = torch.linalg.eigh(cov @ cov.T)
-
-    v = u.T @ cov 
-    ss = (v**2).sum(-1)**.5
-    
-    return ss.cpu().numpy()[::-1]
+device = torch.device('cuda')
+from tqdm import trange
+from torchaudio.functional import fftconvolve
+from sklearn.decomposition import TruncatedSVD 
 
 # generate a random matrix 
 def getA(N, symm = True, device = torch.device('cuda')):
@@ -65,13 +27,28 @@ def symmetrize(A):
     A = A + A.T
     return A 
 
+def Aregularize(A, symm=True, emax = 0.998):
+    if symm:        
+        evals0,u = torch.linalg.eigh(A)                
+    else: 
+        evals0,u = torch.linalg.eig(A)        
+    
+    enorm = torch.real(evals0).max() / emax    
+
+    A = A /enorm
+
+    return A
+
 # this zscore function works for torch data as well as numpy data
-def zscore(X, axis = -1, eps = 1e-3):
-    X = X - X.mean(axis=axis,keepdims=True)
-    X = X/ (eps + (X**2).mean(axis=axis,keepdims=True)**.5)
+def zscore(X, axis = -1, eps = 1e-3, itrain = None):
+    if itrain is None:        
+        X = X - X.mean(axis=axis,keepdims=True)
+        X = X/ (eps + (X**2).mean(axis=axis,keepdims=True)**.5)
+    else:
+        X = X - X[:,itrain].mean(axis=axis,keepdims=True)
+        X = X/ (eps + (X[:,itrain]**2).mean(axis=axis,keepdims=True)**.5)
     return X
 
-from tqdm import trange
 def simulateA(A, dt = 2, tau = 20, device = torch.device('cuda')):
     nn = A.shape[0]
     
@@ -142,24 +119,6 @@ def dynamics_lag(X, Y = None, delta = 10, lam = 0.1, device = torch.device('cuda
     return A
 
 
-
-def Aregularize(A, symm=True):
-
-    if symm:        
-        e,u = torch.linalg.eigh(A)
-        emax = 1.01 * e.max()
-        e = e/emax
-        A = (u * e) @ u.T
-    else: 
-        e,u = torch.linalg.eig(A)
-        r = torch.abs(e)
-        r[r>.99]  = .99
-        enorm = e * r / torch.abs(e) 
-        A = (u * enorm) @ torch.linalg.inv(u)
-        A = A.real
-
-    return A
-
 def ephys_load(dat):
     sp = dat['spks']
     ypos = dat['ypos']
@@ -172,7 +131,8 @@ def ephys_load(dat):
 def pc_timescales(Xdev, xpos, ypos, sig = 0, device = torch.device('cuda')):
     NN, NT = Xdev.shape 
 
-    tblock = NT//10
+    tblock = NT//20
+    #tblock = 2000
     iblock = np.arange(NT)//tblock
 
     Xdev = Xdev[:,:tblock*(NT//tblock)].reshape((NN, -1, tblock))
@@ -211,6 +171,9 @@ def pc_timescales(Xdev, xpos, ypos, sig = 0, device = torch.device('cuda')):
     Xpca1 = u[:,-1000:].T @ Ys[ix].reshape((ix.sum(), -1))
     Xpca2 = v[:,-1000:].T @ Ys[~ix].reshape(((~ix).sum(), -1))
 
+    Xpca1 = zscore(Xpca1, axis=-1)/tblock**.5    
+    Xpca2 = zscore(Xpca2, axis=-1)/tblock**.5    
+
     Xpca1 = Xpca1.reshape((Xpca1.shape[0], -1, tblock))
     Xpca2 = Xpca2.reshape((Xpca2.shape[0], -1, tblock))
 
@@ -218,10 +181,70 @@ def pc_timescales(Xdev, xpos, ypos, sig = 0, device = torch.device('cuda')):
     fX2 = fft(Xpca2, dim = -1)
     ac = ifft(fX1 * torch.conj(fX2),dim = -1).real
 
+    
     ac = ac.mean(1).cpu().numpy()
-    ac = ac/ac[:,:1]
     ac_all = ac[::-1]
 
     acg = ac_all[:, :100]
 
     return acg
+
+    
+def random_connectivity(nn=10000, nonsym=0, distribution="uniform", 
+                        device=torch.device("cuda")):
+    """ generate random connectivity matrix 
+    
+    Args:
+        nn: number of neurons
+        nonsym: 0 for symmetric matrix, 1 for nonsymmetric matrix, and 0-1 for partially symmetric matrix
+        distribution: probability distribution of random matrix
+        device: device to generate matrix on
+
+    Returns:
+        A: connectivity matrix
+    
+    """
+    if distribution == "uniform":
+        A = 2 * torch.rand((nn, nn), device=device) - 1
+    elif distribution == "binary":
+        A = torch.randn((nn, nn), device=device)
+        A[A > 0] = 1
+        A[A <= 0] = -1
+    elif distribution == "gaussian":
+        # gaussian
+        A = torch.randn((nn, nn), device=device)
+    elif distribution == "trunc_gaussian":
+        A = torch.abs(torch.randn((nn, nn), device=device))
+        A -= A.mean()
+    elif distribution == "exponential":
+        A = - torch.log(1 - torch.rand((nn, nn), device=device))
+        A -= 1
+    elif distribution == "sparse":        
+        A = (torch.rand((nn, nn), device=device)<.10).float()
+        A = A - A.mean()
+       
+    symmetric = True if nonsym==0 else False
+    if symmetric:
+        A -= torch.triu(A)
+        A = A + A.T
+    else:
+        if nonsym!=1:
+            Aupper = torch.triu(A)
+            Alower = torch.tril(A)
+            A = Aupper + (1-nonsym) * Aupper.T + nonsym * Alower
+            del Aupper, Alower
+
+    A -= torch.diag(torch.diag(A))
+    A /= nn**0.5 * A.std()
+    A /= 2. if symmetric else 1.
+
+    return A     
+
+def zscore(X, axis = -1, eps = 1e-3, itrain = None):
+    if itrain is None:        
+        X = X - X.mean(axis=axis,keepdims=True)
+        X = X/ (eps + (X**2).mean(axis=axis,keepdims=True)**.5)
+    else:
+        X = X - X[:,itrain].mean(axis=axis,keepdims=True)
+        X = X/ (eps + (X[:,itrain]**2).mean(axis=axis,keepdims=True)**.5)
+    return X
