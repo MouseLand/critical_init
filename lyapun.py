@@ -82,10 +82,12 @@ def dmd(sp, lam = .01, delta = 1, nt=10000, n_comps=1000, inds=None,
     return At, e, v
 
 
+
 def pc_timescales(Xdev, xpos, ypos, sig = 0, device = torch.device('cuda')):
     NN, NT = Xdev.shape 
 
-    tblock = NT//10
+    tblock = NT//20
+    #tblock = 2000
     iblock = np.arange(NT)//tblock
 
     Xdev = Xdev[:,:tblock*(NT//tblock)].reshape((NN, -1, tblock))
@@ -124,6 +126,9 @@ def pc_timescales(Xdev, xpos, ypos, sig = 0, device = torch.device('cuda')):
     Xpca1 = u[:,-1000:].T @ Ys[ix].reshape((ix.sum(), -1))
     Xpca2 = v[:,-1000:].T @ Ys[~ix].reshape(((~ix).sum(), -1))
 
+    Xpca1 = zscore(Xpca1, axis=-1)/tblock**.5    
+    Xpca2 = zscore(Xpca2, axis=-1)/tblock**.5    
+
     Xpca1 = Xpca1.reshape((Xpca1.shape[0], -1, tblock))
     Xpca2 = Xpca2.reshape((Xpca2.shape[0], -1, tblock))
 
@@ -131,8 +136,8 @@ def pc_timescales(Xdev, xpos, ypos, sig = 0, device = torch.device('cuda')):
     fX2 = fft(Xpca2, dim = -1)
     ac = ifft(fX1 * torch.conj(fX2),dim = -1).real
 
+    
     ac = ac.mean(1).cpu().numpy()
-    ac = ac/ac[:,:1]
     ac_all = ac[::-1]
 
     acg = ac_all[:, :100]
