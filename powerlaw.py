@@ -57,6 +57,7 @@ def split_traintest(n_t, frac=0.2, pad=3, fold=0, split_time=False):
     """
     n_segs = int(min(40, n_t/4)) 
     n_len = int(np.floor(n_t/n_segs)) - pad
+    #n_segs = int(np.floor(n_t / (n_len + pad)))
     inds = np.linspace(0, n_t - n_len - 5, n_segs).astype("int")
     n_segs_test = int(np.floor(n_segs*frac))
     split = n_segs // n_segs_test
@@ -72,7 +73,7 @@ def split_traintest(n_t, frac=0.2, pad=3, fold=0, split_time=False):
     return itrain, itest
 
 
-def SVCA(X, xpos=None, ypos=None, spacing=25, frac=0.25, rand_split=True):
+def SVCA(X, xpos=None, ypos=None, spacing=25, frac=0.25, fs=22, rand_split=True):
     """ compute SVCA for neural data
 
     splits neurons and timepoints 
@@ -136,7 +137,17 @@ def zscore_and_compute_evals(Xi):
         Xi: torch tensor of neurons by time
     """
     Xi -= Xi.mean(axis=1, keepdim=True)
-    Xi /= Xi.std(axis=1, keepdim=True)        
+    Xi /= Xi.std(axis=1, keepdim=True)
+    evals, evecs = compute_evals(Xi)
+    return evals, evecs
+
+
+def compute_evals(Xi):
+    """ compute eigenvalues of covariance matrix 
+
+    Args:
+        Xi: torch tensor of neurons by time
+    """
     cov = Xi @ Xi.T / Xi.shape[1]
     evals, evecs = torch.linalg.eigh(cov)
     evals = evals.cpu().numpy()[::-1]
@@ -156,12 +167,13 @@ def fit_powerlaw_exp(ss, trange):
         ypred: predicted eigenvalues from powerlaw fit
 
     """
+    trange0 = trange.copy()
     logss = np.log(np.abs(ss))
-    y = logss[trange][:,np.newaxis]
-    trange += 1
-    nt = trange.size
-    x = np.concatenate((-np.log(trange)[:,np.newaxis], np.ones((nt,1))), axis=1)
-    w = 1.0 / trange.astype(np.float32)[:,np.newaxis]
+    y = logss[trange0][:,np.newaxis]
+    trange0 += 1
+    nt = trange0.size
+    x = np.concatenate((-np.log(trange0)[:,np.newaxis], np.ones((nt,1))), axis=1)
+    w = 1.0 / trange0.astype(np.float32)[:,np.newaxis]
     b = np.linalg.solve(x.T @ (x * w), (w * x).T @ y).flatten()
 
     allrange = np.arange(0, ss.size).astype(int) + 1
