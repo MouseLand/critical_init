@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 import sys, os
 import importlib as imp 
 
-#from fig_utils import *
+from fig_utils import *
 import matplotlib.gridspec as gridspec
 
 import numpy as np 
@@ -25,7 +25,7 @@ kp_colors = np.array([[0.55,0.55,0.55],
                       ])
 
 default_font = 12
-rcParams["font.family"] = "Arial"
+rcParams["font.family"] = "sans-serif"
 rcParams["savefig.dpi"] = 300
 rcParams["axes.spines.top"] = False
 rcParams["axes.spines.right"] = False
@@ -38,36 +38,26 @@ fs_title = 16
 weight_title = "normal"
 
 
-ax_titles = ['2p V1', 'ephys brainwide', '2p CA1']
+ax_titles = ['2p cortex', 'ephys brainwide', '2p CA1']
 
-short_titles = ['2p V1', 'ephys\n brainwide', '2p CA1', 'sim\n symm', 'sim\n non-symm']
+short_titles = ['2p cortex', 'ephys\n brainwide', '2p CA1\n ', 'sim\n symm\n', 'sim\n non-symm']
 
 #dcolors = [[.5,0,0], [.5,.5,0], [0,0,.5], [.75, .75, .75], [.5, .5, .5]]
 #dcolors = ['r', 'y', 'b', [.75, .75, .75], [.5, .5, .5]]
 dcolors2 = [[1,0,0], [1,.65,0], [0,0,1]]
 dcolors = [[1,.5,.5], [1,.75,.25], [.5,.5,1], [.4, .4, .4],  [.75, .75, .75]]
 
-subsets = [np.arange(6), np.arange(18,21),np.arange(6,10), np.arange(10,14), np.arange(14,18)]
+#subsets = [np.arange(8), np.arange(20,23),np.arange(8,12), np.arange(12,16), np.arange(16,20)]
+#subsets = [np.arange(6), np.arange(18,21),np.arange(6,10), np.arange(10,14), np.arange(14,18)]
+subsets = [np.arange(18), np.arange(26,29),np.arange(18,26), np.arange(29,33), np.arange(33,37)]
+iex = [0, 26, 18]
+
 nmax = [400, 100, 100]
     
 yti = .95
 yti2 = .95
 
 ltr = string.ascii_lowercase
-
-def plot_label(ltr, il, ax, trans, fs_title=20):
-    ax.text(
-        0.0,
-        1.0,
-        ltr[il],
-        transform=ax.transAxes + trans,
-        va="bottom",
-        fontsize=fs_title,
-        fontweight="bold",
-    )
-    il += 1
-    return il
-
 
 def my_cmap(xs, cmax):
     cc = np.outer(xs, cmax) + np.outer(1-xs, np.ones(3))
@@ -131,11 +121,13 @@ def avg_acg(evals, ind):
     for j in ind:
         acg += evals[j]['acg'][:400,:100]
     acg = acg/len(ind)
+
+    acg /= acg[:,:1]
     return acg
 
 def fig01(ax, evals):
 
-    ax.set_title('PC auto-correlation @ $\\Delta = 0.23$s\n, example (2p V1)', y = yti)
+    ax.set_title('PC auto-correlation @ $\\Delta = 0.23$s\n, example (2p cortex)', y = yti)
     acg = evals[4]['acg']
     ac_index = acg[:400,4:7].mean(-1)
         
@@ -236,8 +228,10 @@ def fig11(fig, il, grid,evals):
     ax.text(0, 1.125, 'Eigenvalues of DMD matrix (dt=0.23s)', 
             transform = ax.transAxes, fontstyle = 'italic', fontsize = 'large')
 
-    plot_references()
-    plt.scatter(evals[10]['eA'].real, evals[10]['eA'].imag, s = 8, color = dcolors[3])
+    plot_references()    
+    isymm = subsets[3][2] # 12
+    #subsets = [np.arange(8), np.arange(20,23),np.arange(8,12), np.arange(12,16), np.arange(16,20)]
+    plt.scatter(evals[isymm]['e'].real, evals[isymm]['e'].imag, s = 8, color = dcolors[3])
     plt.xlabel('real part')
     plt.ylabel('imaginary part')
     plt.text(1, .5, '1 rotation per 10-fold\n attenuation', 
@@ -252,23 +246,27 @@ def fig11(fig, il, grid,evals):
     ax = plt.subplot(grid[1,2])
     ax.set_title(' \n non-symmetric', y = yti2, fontsize='medium')
     plot_references()
-    plt.scatter(evals[14]['eA'].real, evals[14]['eA'].imag, s = 8, color = dcolors[4])
+    
+    inonsymm = subsets[4][0] # 16    
+    plt.scatter(evals[inonsymm]['e'].real, evals[inonsymm]['e'].imag, s = 8, color = dcolors[4])
     plt.ylim([-1, 1])
     plt.xlim([.25, 1])
 
     return il
 
 def fig20(fig, il, grid, evals):
-    axe_titles = ['example 2p V1', 'ex. ephys brainwide', 'ex. 2p CA1']
+    axe_titles = ['example 2p cortex', 'ex. ephys brainwide', 'ex. 2p CA1']
 
-    iex = [0, 18, 6]
+    #iex = [0, 18, 6]
+    #iex = [0, 20, 8]
+    #iex = [0, 24, 16]
     for j in range(3):
         ax = plt.subplot(grid[2,j])
 
-        if iex[j]<10:
+        if iex[j] in subsets[0].tolist()+subsets[2].tolist():
             e = evals[iex[j]]['e']
         else:
-            e = evals[iex[j]]['eA']
+            e = evals[iex[j]]['e']
 
         plot_references()
         plt.scatter(e.real, e.imag, s = 8, color = dcolors[j])
@@ -290,7 +288,14 @@ def fig23(fig, il, grid, evals):
     ax = plt.subplot(grid[1:,3:])
     ax.set_title('Number of rotations per 10-fold attenuation',  fontstyle = 'italic')
 
+    #imap = np.array([0,0,0,0,0,0,0,0,2,2,2,2,3,3,3,3,4,4,4,4,1,1,1])
     imap = np.array([0,0,0,0,0,0,2,2,2,2,3,3,3,3,4,4,4,4,1,1,1])
+
+    nsum = np.array([len(x) for x in subsets]).sum()
+    imap = np.zeros(nsum,)
+    for j in range(len(subsets)):
+        imap[subsets[j]] = j
+    
 
     yy = 0
     for k in range(5):
@@ -300,10 +305,11 @@ def fig23(fig, il, grid, evals):
         txt = plt.text(-.1, yy + (len(ix)-1)/2, short_titles[k], rotation = 90,
                  color = dcolors[k], va = 'bottom', ha = 'center', rotation_mode = 'anchor')
         for j in ix:
-            if j<10:
+            if j in subsets[0].tolist()+subsets[2].tolist():
                 e = evals[j]['e']
             else:
-                e = evals[j]['eA']
+                #import pdb; pdb.set_trace()
+                e = evals[j]['e']
             
             ix = np.abs(e)>.25
             iang = np.angle(e[ix]) / (2*np.pi)
