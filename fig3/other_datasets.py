@@ -406,7 +406,7 @@ def suppfig_rotate(dsets, fnames):
     fig = plt.figure(figsize=(14, 8.5), dpi=150)
     yratio = 14/8.5
     il = 0
-    grid = plt.GridSpec(3, 4, wspace=0.4, hspace=0.35, figure=fig, 
+    grid = plt.GridSpec(3, 5, wspace=0.4, hspace=0.35, figure=fig, 
                             bottom=0.05, top=0.95, left=0.02, right=0.98)
     cmap = plt.get_cmap('RdPu')(np.linspace(0.4, 1, 5))
     
@@ -421,10 +421,14 @@ def suppfig_rotate(dsets, fnames):
     titles = {'achilles': f'Rat CA1, linear track ({dsets["achilles"]["Xemb"].shape[0]:,} neurons)',
               'plitt': f'Mouse CA1, virtual reality ({dsets["plitt"]["shape"][0]:,} neurons)',
               'zhong': f'Mouse visual cortex, virtual reality ({dsets["zhong"]["shape"][0]:,} neurons)',
-              'mc_maze': f'Macaque PMd and M1, center-out reach - PSTHs ({dsets["mc_maze"]["Xemb"].shape[0]:,} neurons)',
+              'mc_maze': f'Macaque PMd + M1, center-out reach - PSTHs ({dsets["mc_maze"]["Xemb"].shape[0]:,} neurons)',
               'mc_rtt': f'Macaque M1, sequential reach - PSTHs ({dsets["mc_rtt"]["Xemb"].shape[0]:,} neurons)',
               'area2_bump': f'Macaque Area 2, center-out reach - PSTHs ({dsets["area2_bump"]["Xemb"].shape[0]:,} neurons)',
               }
+    
+    axsum = plt.subplot(grid[0, -1])
+    pos = axsum.get_position().bounds
+    axsum.set_position([pos[0]+0.06, pos[1], pos[2]-0.06, pos[3]])
     
     for d, fname in enumerate(fnames):
         dset = dsets[fname]
@@ -627,5 +631,26 @@ def suppfig_rotate(dsets, fnames):
             ax.set_xlabel('real part')
             ax.set_ylabel('imaginary part')
             ax.set_title('Eigenvalues of\nDMD matrix', fontsize='medium', y=.92)
+
+        ix = np.abs(evals)>.25
+        iang = np.angle(evals[ix]) / (2*np.pi)
+        iabs = -np.log10(np.abs(evals[ix]))    
+        irot = iang/iabs
+        ixx = evals[ix].imag>=0
+        mu = irot[ixx].mean()
+        sd = irot[ixx].std()
+        m = np.percentile(irot[ixx], [5, 25, 75, 95])
+        
+        yy = -d
+        axsum.plot([m[0], m[-1]], [yy, yy], color=dcolors[d])
+        axsum.plot([m[1], m[2]], [yy, yy], lw=4, color=dcolors[d])
+        
+    axsum.set_xlabel('rotations per \n10-fold attenuation')
+    axsum.set_yticks(np.arange(-len(fnames)+1, 1))
+    yticks = ['\n'.join(titles[fname].split(',')).split('(')[0] 
+                           for fname in fnames[::-1]]
+    yticks = [ytick.split(' -')[0] for ytick in yticks]
+    axsum.set_yticklabels(yticks, fontsize='small')
+    il = plot_label(ltr, il, axsum, mtransforms.ScaledTranslation(-100 / 72, 6 / 72, fig.dpi_scale_trans))
 
     return fig    

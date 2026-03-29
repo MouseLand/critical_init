@@ -318,10 +318,13 @@ def fig23(fig, il, grid, evals):
             ixx = e[ix].imag>=0
             mu = irot[ixx].mean()
             sd = irot[ixx].std()
-            m = np.percentile(irot[ixx], [5, 25, 75, 95])
+            m = np.percentile(irot[ixx], [5, 25, 50, 75, 95])
             
-            plt.plot([m[0], m[-1]], [yy, yy], color=dcolors[k])
-            plt.plot([m[1], m[2]], [yy, yy], lw=4, color=dcolors[k])
+            plt.plot([m[0], m[-1]], [yy, yy], color=dcolors[k], alpha=0.5)
+            plt.plot([m[1], m[-2]], [yy, yy], lw=4, color=dcolors[k], alpha=0.5)
+            dy = 0.3
+            plt.plot([m[2], m[2]], [yy-dy, yy+dy], lw=1, color=dcolors[k])
+
             yy+=1 
         yy+=1 
 
