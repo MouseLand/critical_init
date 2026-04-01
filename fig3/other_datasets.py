@@ -632,18 +632,21 @@ def suppfig_rotate(dsets, fnames):
             ax.set_ylabel('imaginary part')
             ax.set_title('Eigenvalues of\nDMD matrix', fontsize='medium', y=.92)
 
-        ix = np.abs(evals)>.25
+        ix = np.abs(evals)>.1
         iang = np.angle(evals[ix]) / (2*np.pi)
         iabs = -np.log10(np.abs(evals[ix]))    
         irot = iang/iabs
         ixx = evals[ix].imag>=0
         mu = irot[ixx].mean()
         sd = irot[ixx].std()
-        m = np.percentile(irot[ixx], [5, 25, 75, 95])
-        
+        m = np.percentile(irot[ixx], [5, 25, 50, 75, 95])
+        print(ixx.sum())
         yy = -d
-        axsum.plot([m[0], m[-1]], [yy, yy], color=dcolors[d])
-        axsum.plot([m[1], m[2]], [yy, yy], lw=4, color=dcolors[d])
+        axsum.plot([m[0], m[-1]], [yy, yy], color=0.4*np.ones(3))
+        axsum.plot([m[1], m[-2]], [yy, yy], lw=4, color=0.4*np.ones(3))
+        dy = 0.15
+        axsum.plot([m[2], m[2]], [yy-dy, yy+dy], lw=1, color=dcolors[d])
+
         
     axsum.set_xlabel('rotations per \n10-fold attenuation')
     axsum.set_yticks(np.arange(-len(fnames)+1, 1))

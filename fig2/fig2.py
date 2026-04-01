@@ -754,10 +754,14 @@ def suppfig_running(dat):
             ixx = e[ix].imag>=0
             mu = irot[ixx].mean()
             sd = irot[ixx].std()
-            m = np.percentile(irot[ixx], [5, 25, 75, 95])
+            m = np.percentile(irot[ixx], [5, 25, 50, 75, 95])
             med = np.median(irot[ixx])
-            ax.plot([m[0], m[-1]], -(4*i - j) * np.ones(2), lw=1, color=colors[j])
-            ax.plot([m[1], m[2]], -(4*i - j) * np.ones(2), lw=4, color=colors[j])
+            dy = 0.3
+            yy = -(4*i - j)
+            print(ixx.sum())
+            ax.plot([m[0], m[-1]], -(4*i - j) * np.ones(2), lw=1, color=np.minimum(1, np.array(colors[j])+0.25))
+            ax.plot([m[1], m[-2]], -(4*i - j) * np.ones(2), lw=4, color=np.minimum(1, np.array(colors[j])+0.25))
+            ax.plot([m[2], m[2]], [yy-dy, yy+dy], lw=1, color=colors[j])
             if j==0:
                 ax.text(-0.1, -4*i, f'mouse {len(igood) - i}', rotation=90, ha='center', va='center', fontsize='small')
     ax.set_xlim([-0.1, 1])
