@@ -1,12 +1,14 @@
 # critical_init
 
-Code for [Pachitariu et al 2025](https://www.biorxiv.org/content/10.1101/2025.01.10.632397v1)
+Code for [Pachitariu et al 2026](https://www.nature.com/articles/s41586-026-10528-1)
 
-For Figures 2 and 3, the data will be shared upon publication of the paper (and is shared as a private, confidential link with the reviewers). The `demo.ipynb` notebook contains code to run an example simulation of linear dynamics with a random symmetric connectivity matrix. This notebook will take < 5 min to run on an A100 GPU. The expected output is included in the notebooks.
+For Figures 2 and 3, the data is available on [figshare](https://janelia.figshare.com/articles/dataset/Data_from_A_critical_initialization_for_biological_neural_networks_/27854448), please cite this publication if you use the dataset. For Figure 4 the data is available on [figshare](https://janelia.figshare.com/articles/dataset/Facemap_a_framework_for_modeling_neural_activity_based_on_orofacial_tracking/23712957), please cite Syeda et al 2024 if you use that dataset.
+
+The `demo.ipynb` notebook contains code to run an example simulation of linear dynamics with a random symmetric connectivity matrix. This notebook will take < 5 min to run on an A100 GPU. The expected output is included in the notebooks.
 
 If you use any of this code, please cite the paper:
 
-Marius Pachitariu, Lin Zhong, Alexa Gracias, Amanda Minisi, Crystall Lopez, Carsen Stringer. [A critical initialization for biological neural networks](https://www.biorxiv.org/content/10.1101/2025.01.10.632397v1). *bioRxiv*, 2025.
+**Marius Pachitariu, Lin Zhong, Alexa Gracias, Amanda Minisi, Crystall Lopez, Carsen Stringer. [A critical initialization for biological neural networks](https://www.nature.com/articles/s41586-026-10528-1). *Nature*, 2026.**
 
 This code has been tested on Ubuntu 20.04 and Windows 11 with python=3.10, but python>=3.9 should work.
 
